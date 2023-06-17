@@ -1,0 +1,10 @@
+{
+    "name": "Test Enclosure 1",
+    "size": "Large",
+    "location": "Outside",
+    "objects": [
+        "Pool",
+        "Rocks",
+        "Trees"
+    ]
+}

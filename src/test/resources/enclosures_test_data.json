@@ -1,0 +1,24 @@
+{
+    "enclosures": [
+        {
+            "name": "Test Enclosure 1",
+            "size": "Large",
+            "location": "Outside",
+            "objects": [
+                "Pool",
+                "Rocks",
+                "Trees"
+            ]
+        },
+        {
+            "name": "Test Enclosure 2",
+            "size": "Medium",
+            "location": "Inside",
+            "objects": [
+                "Logs",
+                "Rocks",
+                "Trees"
+            ]
+        }
+    ]
+}

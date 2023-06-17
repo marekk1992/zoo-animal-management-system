@@ -1,0 +1,24 @@
+services:
+  backend:
+    image: zoo-animal-management-system:0.0.1-SNAPSHOT
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - '8080:8080'
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres?currentSchema=zoo_management
+      - SPRING_DATASOURCE_USERNAME=zoo
+      - SPRING_DATASOURCE_PASSWORD=manager
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+
+  postgres:
+    image: postgres:15.3
+    restart: always
+    environment:
+      - POSTGRES_USER=zoo
+      - POSTGRES_PASSWORD=manager
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
