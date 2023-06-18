@@ -2,7 +2,15 @@
 
 ## 1. About
 This is REST API for managing animals transfer to the Zoo.
-Application provides functionality of storing given enclosures from JSON file into database.
+Application stores given enclosures and animals from JSON files into database, while also assigning suitable enclosure for each animal.
+
+The animals are housed according to a set of rules, some of which may seem illogical and unrealistic in a real world:
+1. The size of an enclosure is measured in terms of how many animals it can accommodate, not its territorial size, e.g. "small" enclosure could store 3 animals, "medium" - 7, etc. That way elephant may end up in small enclosure;
+2. Animals placed in enclosures without paying attention to its environment. Wolf may end up in enclosure with climbing structures, trees, which may be more suitable for Gorillas/Pandas;
+3. Meat-eating animals of different species can be placed in same enclosure only in if there are no enclosures with them inside and only two different species of meat-eating animals can be grouped together;
+4. Vegetarian animals can be placed together in same enclosure;
+5. Vegetarian animals can be placed together with meat-eating animals in same enclosure; 
+6. Animals of same species can`t be separated.
 
 ## 2. How to run this API
 Before running this API, I assume that you have successfully installed the following tools on your computer:

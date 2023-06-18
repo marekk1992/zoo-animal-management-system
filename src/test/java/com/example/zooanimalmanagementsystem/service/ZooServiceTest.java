@@ -1,13 +1,12 @@
 package com.example.zooanimalmanagementsystem.service;
 
+import com.example.zooanimalmanagementsystem.repository.AnimalRepository;
 import com.example.zooanimalmanagementsystem.repository.EnclosureRepository;
 import com.example.zooanimalmanagementsystem.repository.model.Enclosure;
+import com.example.zooanimalmanagementsystem.service.exception.DataAlreadyStoredException;
+import com.example.zooanimalmanagementsystem.service.exception.EnclosuresDataNotFound;
 import com.example.zooanimalmanagementsystem.service.model.EnclosureDetails;
 import com.example.zooanimalmanagementsystem.service.model.EnclosuresList;
-import com.example.zooanimalmanagementsystem.service.exception.EnclosuresDataAlreadyStoredException;
-import com.example.zooanimalmanagementsystem.service.exception.InputFileNotAvailableException;
-import com.example.zooanimalmanagementsystem.service.exception.ReadingFromFileFailedException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatcher;
@@ -36,19 +35,23 @@ public class ZooServiceTest {
     @Mock
     private EnclosureRepository enclosureRepository;
 
+    @Mock
+    private AnimalRepository animalRepository;
+
+    @Mock
+    private InputReadingService inputReadingService;
+
     @InjectMocks
     private ZooService zooService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     @Test
-    void reads_and_saves_enclosures_data_from_file_to_database() throws IOException {
+    void saves_collection_of_enclosures() throws IOException {
         // given
         List<Enclosure> expectedEnclosures = List.of(
                 new Enclosure(ID_1, "Test Enclosure 1", "Large", "Outside", List.of("Pool", "Rocks", "Trees")),
                 new Enclosure(ID_2, "Test Enclosure 2", "Medium", "Inside", List.of("Logs", "Rocks", "Trees"))
         );
-        EnclosuresList enclosuresList = new EnclosuresList(
+        EnclosuresList expectedEnclosuresList = new EnclosuresList(
                 List.of(
                         new EnclosureDetails("Test Enclosure 1", "Large", "Outside", List.of("Pool", "Rocks", "Trees")),
                         new EnclosureDetails("Test Enclosure 2", "Medium", "Inside", List.of("Logs", "Rocks", "Trees"))
@@ -60,8 +63,9 @@ public class ZooServiceTest {
                 String.valueOf(MediaType.APPLICATION_JSON),
                 new FileInputStream("src/test/resources/enclosures_test_data.json")
         );
+        when(inputReadingService.retrieveEnclosuresData(givenFile)).thenReturn(expectedEnclosuresList);
         when(enclosureRepository.saveAll(
-                argThat(matchesEnclosuresListToEntity(enclosuresList))
+                argThat(matchesEnclosuresListToEntity(expectedEnclosuresList))
         ))
                 .thenReturn(expectedEnclosures);
 
@@ -85,42 +89,46 @@ public class ZooServiceTest {
         when(enclosureRepository.count()).thenReturn(1L);
 
         // then
-        assertThatExceptionOfType(EnclosuresDataAlreadyStoredException.class)
+        assertThatExceptionOfType(DataAlreadyStoredException.class)
                 .isThrownBy(() -> zooService.saveEnclosures(givenFile))
-                .withMessage("File reading cancelled. Enclosures are already stored in database.");
+                .withMessage("File reading cancelled. Given enclosures are already stored in database.");
     }
 
     @Test
-    void throws_exception_when_enclosures_file_not_provided_or_empty() throws IOException {
+    void throws_exception_when_trying_to_store_animals_without_storing_enclosures_before() throws IOException {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "enclosures_test_data.json",
+                "animals_test_data.json",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                (byte[]) null
+                new FileInputStream("src/test/resources/animals_test_data.json")
         );
+        when(enclosureRepository.count()).thenReturn(0L);
 
         // then
-        assertThatExceptionOfType(InputFileNotAvailableException.class)
-                .isThrownBy(() -> zooService.saveEnclosures(givenFile))
-                .withMessage("Can`t read data. File is either not uploaded or empty.");
+        assertThatExceptionOfType(EnclosuresDataNotFound.class)
+                .isThrownBy(() -> zooService.saveAnimals(givenFile))
+                .withMessage("File reading cancelled. Please store enclosures before proceeding with animals.");
     }
 
     @Test
-    void throws_exception_when_data_in_file_has_incorrect_format() throws IOException {
+    void throws_exception_when_animals_data_already_saved() throws IOException {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "empty_file.txt",
+                "animals_test_data.json",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
+                new FileInputStream("src/test/resources/animals_test_data.json")
         );
+        when(enclosureRepository.count()).thenReturn(1L);
+        when(animalRepository.count()).thenReturn(1L);
 
         // then
-        assertThatExceptionOfType(ReadingFromFileFailedException.class)
-                .isThrownBy(() -> zooService.saveEnclosures(givenFile))
-                .withMessage("Can`t read data from file. Make sure file has correct format");
+        assertThatExceptionOfType(DataAlreadyStoredException.class)
+                .isThrownBy(() -> zooService.saveAnimals(givenFile))
+                .withMessage("File reading cancelled. Given animals are already stored in database.");
     }
+
 
     private ArgumentMatcher<List<Enclosure>> matchesEnclosuresListToEntity(EnclosuresList enclosuresList) {
         return enclosures -> enclosures.get(0).getName().equals(enclosuresList.enclosures().get(0).name()) &&

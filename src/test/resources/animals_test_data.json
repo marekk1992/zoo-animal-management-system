@@ -1,0 +1,14 @@
+{
+    "animals": [
+        {
+            "species": "Test 1",
+            "food": "Herbivore",
+            "amount": 2
+        },
+        {
+            "species": "Test 2",
+            "food": "Carnivore",
+            "amount": 3
+        }
+    ]
+}

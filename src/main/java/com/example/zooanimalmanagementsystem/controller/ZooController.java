@@ -22,4 +22,10 @@ public class ZooController {
         zooService.saveEnclosures(file);
         return "Successfully read data from file: " + file.getOriginalFilename();
     }
+
+    @PostMapping("/upload/animals")
+    public String saveAnimals(@RequestParam MultipartFile file) {
+        zooService.saveAnimals(file);
+        return "Successfully read data from file: " + file.getOriginalFilename();
+    }
 }

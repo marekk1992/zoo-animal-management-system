@@ -53,7 +53,17 @@ public class Enclosure {
         this.objects = objects;
         freeSpace = evaluateEnclosureCapacity(size);
         animals = new ArrayList<>();
-        animals.add("empty");
+        animals.add("Empty");
+    }
+
+    public Enclosure(UUID id, String name, String size, String location, List<String> objects, int freeSpace, List<String> animals) {
+        this.id = id;
+        this.name = name;
+        this.size = size;
+        this.location = location;
+        this.objects = objects;
+        this.freeSpace = freeSpace;
+        this.animals = animals;
     }
 
     @Override
@@ -107,12 +117,35 @@ public class Enclosure {
         return objects;
     }
 
+    public int getFreeSpace() {
+        return freeSpace;
+    }
+
+    public List<String> getAnimals() {
+        return animals;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public void setFreeSpace(int freeSpace) {
+        this.freeSpace = freeSpace;
+    }
+
+    public void setAnimals(String animal) {
+        if (animals.contains("Empty")) {
+            animals.clear();
+        }
+        animals.add(animal);
+    }
+
     private int evaluateEnclosureCapacity(String size) {
         return switch (size) {
-            case "Small" -> 2;
-            case "Medium" -> 5;
-            case "Large" -> 8;
-            case "Huge" -> 11;
+            case "Small" -> 3;
+            case "Medium" -> 7;
+            case "Large" -> 11;
+            case "Huge" -> 15;
             default -> 0;
         };
     }
