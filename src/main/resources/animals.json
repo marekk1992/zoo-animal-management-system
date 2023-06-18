@@ -1,0 +1,59 @@
+{
+    "animals": [
+        {
+            "species": "Lion",
+            "food": "Carnivore",
+            "amount": 2
+        },
+        {
+            "species": "Tiger",
+            "food": "Carnivore",
+            "amount": 3
+        },
+        {
+            "species": "Elephant",
+            "food": "Herbivore",
+            "amount": 5
+        },
+        {
+            "species": "Giraffe",
+            "food": "Herbivore",
+            "amount": 2
+        },
+        {
+            "species": "Polar Bear",
+            "food": "Carnivore",
+            "amount": 2
+        },
+        {
+            "species": "Zebra",
+            "food": "Herbivore",
+            "amount": 4
+        },
+        {
+            "species": "Cheetah",
+            "food": "Carnivore",
+            "amount": 5
+        },
+        {
+            "species": "Jaguar",
+            "food": "Carnivore",
+            "amount": 2
+        },
+        {
+            "species": "Gorilla",
+            "food": "Herbivore",
+            "amount": 2
+        },
+        {
+            "species": "Wolf",
+            "food": "Carnivore",
+            "amount": 4
+        },
+        {
+            "species": "Hyena",
+            "food": "Carnivore",
+            "amount": 5
+        }
+    ]
+}
