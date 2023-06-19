@@ -9,7 +9,7 @@ public record CreateAnimalRequest(
         @NotBlank(message = "Species is required.")
         String species,
 
-        @NotNull(message = "Please provide animal food type. Usage: 'Carnivore' or 'Herbivore'.")
+        @NotNull(message = "Animal food is required.")
         String food,
 
         @Min(value = 1, message = "Animal amount should not be less than 1.")
