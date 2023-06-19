@@ -67,9 +67,9 @@ public class InputReadingServiceTest {
     void throws_exception_when_enclosures_file_has_incorrect_format() throws IOException {
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "empty_file.txt",
+                "incorrect_format.txt",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
+                new FileInputStream("src/test/resources/incorrect_format.txt")
         );
 
         // then
@@ -122,9 +122,9 @@ public class InputReadingServiceTest {
     void throws_exception_when_animals_file_has_incorrect_format() throws IOException {
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "empty_file.txt",
+                "incorrect_format.txt",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
+                new FileInputStream("src/test/resources/incorrect_format.txt")
         );
 
         // then

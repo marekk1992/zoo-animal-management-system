@@ -383,9 +383,9 @@ public class ZooControllerTest {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "empty_file.txt",
+                "incorrect_format.txt",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
+                new FileInputStream("src/test/resources/incorrect_format.txt")
         );
         String message = "Can`t read data from file. Make sure file has correct format";
         doThrow(new ReadingFromFileFailedException(message)).when(zooService).storeEnclosures(givenFile);
@@ -459,9 +459,9 @@ public class ZooControllerTest {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "empty_file.txt",
+                "incorrect_format.txt",
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
+                new FileInputStream("src/test/resources/incorrect_format.txt")
         );
         String message = "Can`t read data from file. Make sure file has correct format";
         doThrow(new ReadingFromFileFailedException(message)).when(zooService).storeAnimals(givenFile);
