@@ -1,7 +1,8 @@
 package com.example.zooanimalmanagementsystem.controller.error;
 
 import com.example.zooanimalmanagementsystem.controller.error.model.ApiError;
-import com.example.zooanimalmanagementsystem.service.exception.EnclosuresDataNotFound;
+import com.example.zooanimalmanagementsystem.service.exception.AnimalNotFoundException;
+import com.example.zooanimalmanagementsystem.service.exception.EnclosureNotFoundException;
 import com.example.zooanimalmanagementsystem.service.exception.InputFileNotAvailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,13 @@ public class ZooExceptionHandler {
     }
 
     @ExceptionHandler
-    public ResponseEntity<ApiError> handleException(EnclosuresDataNotFound exc) {
+    public ResponseEntity<ApiError> handleException(EnclosureNotFoundException exc) {
+        ApiError apiError = new ApiError(HttpStatus.NOT_FOUND, exc.getMessage(), LocalDateTime.now());
+        return new ResponseEntity<>(apiError, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ApiError> handleException(AnimalNotFoundException exc) {
         ApiError apiError = new ApiError(HttpStatus.NOT_FOUND, exc.getMessage(), LocalDateTime.now());
         return new ResponseEntity<>(apiError, HttpStatus.NOT_FOUND);
     }

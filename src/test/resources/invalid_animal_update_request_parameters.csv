@@ -1,0 +1,3 @@
+species, amount, errorMessage
+, 2, Species is required.
+Lion, 0, Animal amount should not be less than 1.

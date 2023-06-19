@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,20 +24,65 @@ public class AnimalRepositoryTest {
     private AnimalRepository animalRepository;
 
     @Test
-    void saves_collection_of_animals() {
-        //given
-        List<Animal> savedAnimals = List.of(
+    void returns_collection_of_animals() {
+        // given
+        animalRepository.saveAll(List.of(
                 new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID),
-                new Animal(ID_2, "Giraffe", "Herbivore", 2, ENCLOSURE_ID)
+                new Animal(ID_2, "Giraffe", "Herbivore", 2, ENCLOSURE_ID))
         );
 
         // when
-        List<Animal> actualAnimals = animalRepository.saveAll(savedAnimals);
+        List<Animal> actualAnimals = animalRepository.findAll();
 
         // then
         assertThat(actualAnimals)
                 .extracting("id")
                 .containsExactly(ID_1, ID_2);
+    }
+
+    @Test
+    void returns_animal_by_id() {
+        // given
+        animalRepository.saveAll(List.of(
+                new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID),
+                new Animal(ID_2, "Giraffe", "Herbivore", 2, ENCLOSURE_ID))
+        );
+
+        // when
+        Optional<Animal> actualAnimal = animalRepository.findById(ID_1);
+
+        // then
+        assertThat(actualAnimal.get().getId())
+                .isEqualTo(ID_1);
+    }
+
+    @Test
+    void saves_animal() {
+        // when
+        Animal savedAnimal = animalRepository.save(new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID));
+
+        // then
+        assertThat(savedAnimal.getId())
+                .isEqualTo(ID_1);
+    }
+
+    @Test
+    void deletes_animal_by_id() {
+        // given
+        animalRepository.saveAll(List.of(
+                new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID),
+                new Animal(ID_2, "Giraffe", "Herbivore", 2, ENCLOSURE_ID))
+        );
+
+        // when
+        animalRepository.deleteById(ID_1);
+        List<Animal> actualAnimals = animalRepository.findAll();
+
+        // then
+        assertThat(actualAnimals)
+                .hasSize(1)
+                .extracting("id")
+                .containsOnly(ID_2);
     }
 
     @Test
