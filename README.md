@@ -24,20 +24,19 @@ Before running this API, I assume that you have successfully installed the follo
 - Docker-compose - for running multi-container Docker applications;
 - API client tool (e.g. Postman) - for sending JSON file and testing REST API.
 
-
-`Step 2` - build docker image:
+`Step 1` - build docker image:
 
 Navigate to root of the project and execute command:
 
     $ mvn spring-boot:build-image
 
-`Step 3` - start your project`s services:
+`Step 2` - start your project`s services:
 
     $ docker-compose up -d
 
 This will start PostgreSQL and application services in the background.
 
-`*Notes`:
+`*Note`:
 
 1 - This REST API is test covered. You could run tests by executing command:
 
