@@ -29,6 +29,12 @@ public class Animal {
     public Animal() {
     }
 
+    public Animal(String species, int amount) {
+        id = UUID.randomUUID();
+        this.species = species;
+        this.amount = amount;
+    }
+
     public Animal(String species, String food, int amount) {
         id = UUID.randomUUID();
         this.species = species;
@@ -95,5 +101,21 @@ public class Animal {
 
     public void setEnclosureId(UUID enclosureId) {
         this.enclosureId = enclosureId;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public void setSpecies(String species) {
+        this.species = species;
+    }
+
+    public void setFood(String food) {
+        this.food = food;
+    }
+
+    public void setAmount(int amount) {
+        this.amount = amount;
     }
 }

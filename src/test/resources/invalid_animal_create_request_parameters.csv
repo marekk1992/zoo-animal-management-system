@@ -1,0 +1,4 @@
+species, food, amount, errorMessage
+, Carnivore, 2, Species is required.
+Lion, , 2, Please provide animal food type. Usage: 'Carnivore' or 'Herbivore'.
+Lion, Carnivore, 0, Animal amount should not be less than 1.

@@ -140,6 +140,14 @@ public class Enclosure {
         animals.add(animal);
     }
 
+    public void removeAnimals(String animal) {
+        animals.remove(animal);
+
+        if (animals.isEmpty()) {
+            animals.add("Empty");
+        }
+    }
+
     private int evaluateEnclosureCapacity(String size) {
         return switch (size) {
             case "Small" -> 3;

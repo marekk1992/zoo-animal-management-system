@@ -2,9 +2,11 @@ package com.example.zooanimalmanagementsystem.service;
 
 import com.example.zooanimalmanagementsystem.repository.AnimalRepository;
 import com.example.zooanimalmanagementsystem.repository.EnclosureRepository;
+import com.example.zooanimalmanagementsystem.repository.model.Animal;
 import com.example.zooanimalmanagementsystem.repository.model.Enclosure;
+import com.example.zooanimalmanagementsystem.service.exception.AnimalNotFoundException;
 import com.example.zooanimalmanagementsystem.service.exception.DataAlreadyStoredException;
-import com.example.zooanimalmanagementsystem.service.exception.EnclosuresDataNotFound;
+import com.example.zooanimalmanagementsystem.service.exception.EnclosureNotFoundException;
 import com.example.zooanimalmanagementsystem.service.model.EnclosureDetails;
 import com.example.zooanimalmanagementsystem.service.model.EnclosuresList;
 import org.junit.jupiter.api.Test;
@@ -19,18 +21,25 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class ZooServiceTest {
 
-    private static final UUID ID_1 = UUID.fromString("926e09f7-3c78-469d-bdbc-2d34d314c1b4");
-    private static final UUID ID_2 = UUID.fromString("2d88924f-0f63-4280-9e58-a9a126049273");
+    private static final UUID ID_1 = UUID.fromString("6879e088-6a43-4f13-bd57-6bddb54fbd1b");
+    private static final UUID ID_2 = UUID.fromString("2159cfe1-a549-4aa5-8ff6-b8257366c94d");
+    private static final UUID ENCLOSURE_ID = UUID.fromString("7c0e1530-3232-4547-854c-68876f4d6fd7");
 
     @Mock
     private EnclosureRepository enclosureRepository;
@@ -43,6 +52,102 @@ public class ZooServiceTest {
 
     @InjectMocks
     private ZooService zooService;
+
+    @Test
+    void returns_collection_of_animals() {
+        // given
+        List<Animal> expectedAnimals = List.of(
+                        new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID),
+                        new Animal(ID_2, "Giraffe", "Herbivore", 2, ENCLOSURE_ID)
+        );
+        when(animalRepository.findAll()).thenReturn(expectedAnimals);
+
+        // when
+        List<Animal> actualAnimals = zooService.findAllAnimals();
+
+        // then
+        assertThat(actualAnimals)
+                .isEqualTo(expectedAnimals);
+    }
+
+    @Test
+    void finds_animal_by_id() {
+        // given
+        Animal expectedAnimal = new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID);
+        when(animalRepository.findById(ID_1)).thenReturn(Optional.of(expectedAnimal));
+
+        // when
+        Animal actualAnimal = zooService.findAnimalById(ID_1);
+
+        // then
+        assertThat(actualAnimal)
+                .isEqualTo(expectedAnimal);
+    }
+
+    @Test
+    void throws_exception_when_trying_to_find_non_existing_animal() {
+        // given
+        when(animalRepository.findById(ID_1)).thenReturn(Optional.empty());
+
+        // then
+        assertThatExceptionOfType(AnimalNotFoundException.class)
+                .isThrownBy(() -> zooService.findAnimalById(ID_1))
+                .withMessage("Could not find animal with id - " + ID_1);
+    }
+
+    @Test
+    void deletes_animal_by_id() {
+        // given
+        Animal givenAnimal = new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID);
+        when(animalRepository.findById(ID_1)).thenReturn(Optional.of(givenAnimal));
+        doNothing().when(animalRepository).deleteById(ID_1);
+
+        // when
+        zooService.deleteAnimalById(ID_1);
+
+        // then
+        verify(animalRepository, times(1)).deleteById(ID_1);
+        verifyNoMoreInteractions(animalRepository);
+    }
+
+    @Test
+    void throws_exception_when_trying_to_delete_non_existing_animal() {
+        // given
+        doThrow(AnimalNotFoundException.class).when(animalRepository).findById(ID_1);
+
+        // then
+        assertThatExceptionOfType(AnimalNotFoundException.class)
+                .isThrownBy(() -> zooService.deleteAnimalById(ID_1))
+                .withMessage("Deletion failed. Could not find animal with id - " + ID_1);
+    }
+
+    @Test
+    void updates_animal_by_id_with_provided_data() {
+        // given
+        Animal givenAnimal = new Animal("Lion", 3);
+        Animal expectedAnimal = new Animal(ID_1, "Lion", "Carnivore", 3, ENCLOSURE_ID);
+        when(animalRepository.findById(ID_1)).thenReturn(Optional.of(givenAnimal));
+        when(animalRepository.save(expectedAnimal)).thenReturn(expectedAnimal);
+
+        // when
+        Animal actualAnimal = zooService.updateAnimal(ID_1, expectedAnimal);
+
+        // then
+        assertThat(actualAnimal)
+                .isEqualTo(expectedAnimal);
+    }
+
+    @Test
+    void throws_exception_when_trying_to_update_non_existing_animal() {
+        // given
+        Animal givenAnimal = new Animal("Lion", 3);
+        when(animalRepository.findById(ID_1)).thenReturn(Optional.empty());
+
+        // then
+        assertThatExceptionOfType(AnimalNotFoundException.class)
+                .isThrownBy(() -> zooService.updateAnimal(ID_1, givenAnimal))
+                .withMessage("Update failed. Could not find animal with id - " + ID_1);
+    }
 
     @Test
     void saves_collection_of_enclosures() throws IOException {
@@ -68,9 +173,8 @@ public class ZooServiceTest {
                 argThat(matchesEnclosuresListToEntity(expectedEnclosuresList))
         ))
                 .thenReturn(expectedEnclosures);
-
         // when
-        List<Enclosure> actualEnclosures = zooService.saveEnclosures(givenFile);
+        List<Enclosure> actualEnclosures = zooService.storeEnclosures(givenFile);
 
         // then
         assertThat(actualEnclosures)
@@ -90,7 +194,7 @@ public class ZooServiceTest {
 
         // then
         assertThatExceptionOfType(DataAlreadyStoredException.class)
-                .isThrownBy(() -> zooService.saveEnclosures(givenFile))
+                .isThrownBy(() -> zooService.storeEnclosures(givenFile))
                 .withMessage("File reading cancelled. Given enclosures are already stored in database.");
     }
 
@@ -106,8 +210,8 @@ public class ZooServiceTest {
         when(enclosureRepository.count()).thenReturn(0L);
 
         // then
-        assertThatExceptionOfType(EnclosuresDataNotFound.class)
-                .isThrownBy(() -> zooService.saveAnimals(givenFile))
+        assertThatExceptionOfType(EnclosureNotFoundException.class)
+                .isThrownBy(() -> zooService.storeAnimals(givenFile))
                 .withMessage("File reading cancelled. Please store enclosures before proceeding with animals.");
     }
 
@@ -125,7 +229,7 @@ public class ZooServiceTest {
 
         // then
         assertThatExceptionOfType(DataAlreadyStoredException.class)
-                .isThrownBy(() -> zooService.saveAnimals(givenFile))
+                .isThrownBy(() -> zooService.storeAnimals(givenFile))
                 .withMessage("File reading cancelled. Given animals are already stored in database.");
     }
 
