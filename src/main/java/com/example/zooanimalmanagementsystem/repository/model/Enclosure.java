@@ -142,7 +142,6 @@ public class Enclosure {
 
     public void removeAnimals(String animal) {
         animals.remove(animal);
-
         if (animals.isEmpty()) {
             animals.add("Empty");
         }

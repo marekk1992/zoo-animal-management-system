@@ -8,6 +8,7 @@ import com.example.zooanimalmanagementsystem.service.exception.AnimalNotFoundExc
 import com.example.zooanimalmanagementsystem.service.exception.DataAlreadyStoredException;
 import com.example.zooanimalmanagementsystem.service.exception.EnclosureNotFoundException;
 import com.example.zooanimalmanagementsystem.service.exception.InputFileNotAvailableException;
+import com.example.zooanimalmanagementsystem.service.exception.NotEnoughFreeSpaceInEnclosure;
 import com.example.zooanimalmanagementsystem.service.exception.ReadingFromFileFailedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ public class ZooControllerTest {
     private static final UUID ENCLOSURE_ID = UUID.fromString("7c0e1530-3232-4547-854c-68876f4d6fd7");
     private static final String ANIMALS_URL = "/v1/zoo/animals";
     private static final String ANIMAL_BY_ID_URL = ANIMALS_URL + "/{animalId}";
+    private static final String DATA_UPLOAD_URL = "/v1/zoo/upload";
 
     @MockBean
     private ZooService zooService;
@@ -179,6 +181,41 @@ public class ZooControllerTest {
     }
 
     @Test
+    void return_500_response_when_provided_incorrect_animal_food() throws Exception {
+        // given
+        String message = "Please specify correct animal food. Usage 'Carnivore' or 'Herbivore'.";
+        CreateAnimalRequest createAnimalRequest = new CreateAnimalRequest("Wolf", "InvalidFood", 3);
+        String requestBody = objectMapper.writeValueAsString(createAnimalRequest);
+        doThrow(new EnclosureNotFoundException(message))
+                .when(zooService).saveAnimal(argThat(matchCreateAnimalRequestToEntity(createAnimalRequest)));
+
+        // then
+        mockMvc.perform(post(ANIMALS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void returns_404_response_when_there_is_no_suitable_enclosure() throws Exception {
+        // given
+        String message = "Can`t find suitable enclosure for given animal.";
+        CreateAnimalRequest createAnimalRequest = new CreateAnimalRequest("Wolf", "Carnivore", 500);
+        String requestBody = objectMapper
+                .writeValueAsString(createAnimalRequest);
+        doThrow(new EnclosureNotFoundException(message))
+                .when(zooService).saveAnimal(argThat(matchCreateAnimalRequestToEntity(createAnimalRequest)));
+
+        // then
+        mockMvc.perform(post(ANIMALS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
     void updates_animal_by_id() throws Exception {
         // given
         UpdateAnimalRequest updateAnimalRequest = new UpdateAnimalRequest("Wolf", 3);
@@ -212,8 +249,7 @@ public class ZooControllerTest {
             String species, int amount, String message
     ) throws Exception {
         // given
-        String requestBody = objectMapper
-                .writeValueAsString(new UpdateAnimalRequest(species, amount));
+        String requestBody = objectMapper.writeValueAsString(new UpdateAnimalRequest(species, amount));
 
         // then
         mockMvc.perform(put(ANIMAL_BY_ID_URL, ID_1)
@@ -227,8 +263,7 @@ public class ZooControllerTest {
     void return_404_response_when_trying_to_update_non_existing_animal() throws Exception {
         // given
         String message = "Update failed. Could not find animal by id - " + ID_1;
-        String requestBody = objectMapper
-                .writeValueAsString(new UpdateAnimalRequest("Wolf", 3));
+        String requestBody = objectMapper.writeValueAsString(new UpdateAnimalRequest("Wolf", 3));
         doThrow(new AnimalNotFoundException(message)).when(zooService).updateAnimal(any(UUID.class), any(Animal.class));
 
         // then
@@ -236,6 +271,21 @@ public class ZooControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void return_500_response_when_provided_higher_animals_amount_for_update_than_enclosure_can_actually_store() throws Exception {
+        // given
+        String message = "Update failed. Enclosure can`t store such amount of animals.";
+        String requestBody = objectMapper.writeValueAsString(new UpdateAnimalRequest("Wolf", 50));
+        doThrow(new NotEnoughFreeSpaceInEnclosure(message)).when(zooService).updateAnimal(any(UUID.class), any(Animal.class));
+
+        // then
+        mockMvc.perform(put(ANIMAL_BY_ID_URL, ID_1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isInternalServerError())
                 .andExpect(content().string(containsString(message)));
     }
 
@@ -270,122 +320,28 @@ public class ZooControllerTest {
                 .andExpect(content().string(containsString("Request method 'DELETE' is not supported")));
     }
 
-    @Test
-    void reads_data_from_animals_json_file() throws Exception {
+    @ParameterizedTest
+    @CsvFileSource(resources = "/file_info.csv", numLinesToSkip = 1)
+    void reads_data_from_json_file(String fileName, String urlPart) throws Exception {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
-                "animals_test_data.json",
+                fileName,
                 String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/animals_test_data.json")
+                new FileInputStream("src/test/resources/" + fileName)
         );
         String message = "Successfully read data from file: " + givenFile.getOriginalFilename();
         when(zooService.storeAnimals(givenFile)).thenReturn(anyList());
 
         // then
-        mockMvc.perform(multipart("/v1/zoo/upload/animals")
+        mockMvc.perform(multipart(DATA_UPLOAD_URL + urlPart)
                         .file(givenFile))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(message)));
     }
 
     @Test
-    void returns_404_response_when_trying_to_store_animals_without_storing_enclosures_at_first() throws Exception {
-        // given
-        MockMultipartFile givenFile = new MockMultipartFile(
-                "file",
-                "animals_test_data.json",
-                String.valueOf(MediaType.APPLICATION_JSON),
-                (byte[]) null
-        );
-        String message = "File reading cancelled. Please store enclosures before proceeding with animals.";
-        doThrow(new EnclosureNotFoundException(message)).when(zooService).storeAnimals(givenFile);
-
-        // then
-        mockMvc.perform(multipart("/v1/zoo/upload/animals")
-                        .file(givenFile))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string(containsString(message)));
-    }
-
-    @Test
-    void returns_404_response_when_animals_file_not_provided_or_empty() throws Exception {
-        // given
-        MockMultipartFile givenFile = new MockMultipartFile(
-                "file",
-                "animals_test_data.json",
-                String.valueOf(MediaType.APPLICATION_JSON),
-                (byte[]) null
-        );
-        String message = "Can`t read data. File is either not uploaded or empty.";
-        doThrow(new InputFileNotAvailableException(message)).when(zooService).storeAnimals(givenFile);
-
-        // then
-        mockMvc.perform(multipart("/v1/zoo/upload/animals")
-                        .file(givenFile))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string(containsString(message)));
-    }
-
-    @Test
-    void return_500_response_when_animals_data_is_already_stored() throws Exception {
-        // given
-        MockMultipartFile givenFile = new MockMultipartFile(
-                "file",
-                "animals_test_data.json",
-                String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/animals_test_data.json")
-        );
-        String message = "File reading cancelled. Given animals are already stored in database.";
-        doThrow(new DataAlreadyStoredException(message)).when(zooService).storeAnimals(givenFile);
-
-        // then
-        mockMvc.perform(multipart("/v1/zoo/upload/animals")
-                        .file(givenFile))
-                .andExpect(status().isInternalServerError())
-                .andExpect(content().string(containsString(message)));
-    }
-
-    @Test
-    void returns_500_response_animals_file_has_incorrect_format() throws Exception {
-        // given
-        MockMultipartFile givenFile = new MockMultipartFile(
-                "file",
-                "empty_file.txt",
-                String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/empty_file.txt")
-        );
-        String message = "Can`t read data from file. Make sure file has correct format";
-        doThrow(new ReadingFromFileFailedException(message)).when(zooService).storeAnimals(givenFile);
-
-        // then
-        mockMvc.perform(multipart("/v1/zoo/upload/animals")
-                        .file(givenFile))
-                .andExpect(status().isInternalServerError())
-                .andExpect(content().string(containsString(message)));
-    }
-
-    @Test
-    void reads_data_from_enclosures_json_file() throws Exception {
-        // given
-        MockMultipartFile givenFile = new MockMultipartFile(
-                "file",
-                "enclosures_test_data.json",
-                String.valueOf(MediaType.APPLICATION_JSON),
-                new FileInputStream("src/test/resources/enclosures_test_data.json")
-        );
-        String message = "Successfully read data from file: " + givenFile.getOriginalFilename();
-        when(zooService.storeEnclosures(givenFile)).thenReturn(anyList());
-
-        // then
-        mockMvc.perform(multipart("/v1/zoo/upload/enclosures")
-                        .file(givenFile))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString(message)));
-    }
-
-    @Test
-    void returns_404_response_when_enclosures_file_not_provided_or_empty() throws Exception {
+    void returns_404_response_when_enclosures_is_file_not_provided_or_empty() throws Exception {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
@@ -423,7 +379,7 @@ public class ZooControllerTest {
     }
 
     @Test
-    void returns_500_response_enclosures_file_has_incorrect_format() throws Exception {
+    void returns_500_response_when_enclosures_file_has_incorrect_format() throws Exception {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
@@ -436,6 +392,82 @@ public class ZooControllerTest {
 
         // then
         mockMvc.perform(multipart("/v1/zoo/upload/enclosures")
+                        .file(givenFile))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void returns_404_response_when_trying_to_store_animals_without_storing_enclosures_first() throws Exception {
+        // given
+        MockMultipartFile givenFile = new MockMultipartFile(
+                "file",
+                "animals_test_data.json",
+                String.valueOf(MediaType.APPLICATION_JSON),
+                (byte[]) null
+        );
+        String message = "File reading cancelled. Please store enclosures before proceeding with animals.";
+        doThrow(new EnclosureNotFoundException(message)).when(zooService).storeAnimals(givenFile);
+
+        // then
+        mockMvc.perform(multipart("/v1/zoo/upload/animals")
+                        .file(givenFile))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void returns_404_response_when_animals_file_is_not_provided_or_empty() throws Exception {
+        // given
+        MockMultipartFile givenFile = new MockMultipartFile(
+                "file",
+                "animals_test_data.json",
+                String.valueOf(MediaType.APPLICATION_JSON),
+                (byte[]) null
+        );
+        String message = "Can`t read data. File is either not uploaded or empty.";
+        doThrow(new InputFileNotAvailableException(message)).when(zooService).storeAnimals(givenFile);
+
+        // then
+        mockMvc.perform(multipart("/v1/zoo/upload/animals")
+                        .file(givenFile))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void returns_500_response_when_animals_data_is_already_stored() throws Exception {
+        // given
+        MockMultipartFile givenFile = new MockMultipartFile(
+                "file",
+                "animals_test_data.json",
+                String.valueOf(MediaType.APPLICATION_JSON),
+                new FileInputStream("src/test/resources/animals_test_data.json")
+        );
+        String message = "File reading cancelled. Given animals are already stored in database.";
+        doThrow(new DataAlreadyStoredException(message)).when(zooService).storeAnimals(givenFile);
+
+        // then
+        mockMvc.perform(multipart("/v1/zoo/upload/animals")
+                        .file(givenFile))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string(containsString(message)));
+    }
+
+    @Test
+    void returns_500_response_when_animals_file_has_incorrect_format() throws Exception {
+        // given
+        MockMultipartFile givenFile = new MockMultipartFile(
+                "file",
+                "empty_file.txt",
+                String.valueOf(MediaType.APPLICATION_JSON),
+                new FileInputStream("src/test/resources/empty_file.txt")
+        );
+        String message = "Can`t read data from file. Make sure file has correct format";
+        doThrow(new ReadingFromFileFailedException(message)).when(zooService).storeAnimals(givenFile);
+
+        // then
+        mockMvc.perform(multipart("/v1/zoo/upload/animals")
                         .file(givenFile))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().string(containsString(message)));

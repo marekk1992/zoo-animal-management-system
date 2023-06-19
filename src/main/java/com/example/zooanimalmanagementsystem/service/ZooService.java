@@ -7,7 +7,8 @@ import com.example.zooanimalmanagementsystem.repository.model.Enclosure;
 import com.example.zooanimalmanagementsystem.service.exception.AnimalNotFoundException;
 import com.example.zooanimalmanagementsystem.service.exception.DataAlreadyStoredException;
 import com.example.zooanimalmanagementsystem.service.exception.EnclosureNotFoundException;
-import com.example.zooanimalmanagementsystem.service.exception.NoAvailableEnclosureException;
+import com.example.zooanimalmanagementsystem.service.exception.IncorrectAnimalTypeException;
+import com.example.zooanimalmanagementsystem.service.exception.NotEnoughFreeSpaceInEnclosure;
 import com.example.zooanimalmanagementsystem.service.model.AnimalsList;
 import com.example.zooanimalmanagementsystem.service.model.EnclosuresList;
 import org.springframework.stereotype.Service;
@@ -45,9 +46,9 @@ public class ZooService {
     }
 
     public Animal saveAnimal(Animal animal) {
-        UUID enclosureId = assignEnclosure(animal.getFood(), animal.getAmount());
-        animal.setEnclosureId(assignEnclosure(animal.getFood(), animal.getAmount()));
-        updateEnclosureDataWithAnimalInfo(enclosureId, animal.getAmount(), animal.getFood());
+        Enclosure enclosure = getEnclosureForAnimal(animal.getFood(), animal.getAmount());
+        animal.setEnclosureId(enclosure.getId());
+        updateEnclosureWithAnimal(enclosure, animal.getAmount(), animal.getFood());
 
         return animalRepository.save(animal);
     }
@@ -55,10 +56,11 @@ public class ZooService {
     public Animal updateAnimal(UUID id, Animal animal) {
         try {
             Animal tempAnimal = findAnimalById(id);
+            Enclosure enclosure = findEnclosureById(tempAnimal.getEnclosureId());
             animal.setId(id);
             animal.setFood(tempAnimal.getFood());
             animal.setEnclosureId(tempAnimal.getEnclosureId());
-            updateEnclosureDataWithNewAmount(animal.getEnclosureId(), animal.getAmount() - tempAnimal.getAmount());
+            updateEnclosureWithAmount(enclosure, animal.getAmount() - tempAnimal.getAmount());
 
             return animalRepository.save(animal);
         } catch (AnimalNotFoundException e) {
@@ -69,20 +71,12 @@ public class ZooService {
     public void deleteAnimalById(UUID id) {
         try {
             Animal animal = findAnimalById(id);
-            updateEnclosureDataWithAnimalInfo(animal.getEnclosureId(), -animal.getAmount(), animal.getFood());
+            Enclosure enclosure = findEnclosureById(animal.getEnclosureId());
+            updateEnclosureWithAnimal(enclosure, -animal.getAmount(), animal.getFood());
             animalRepository.deleteById(id);
         } catch (AnimalNotFoundException e) {
             throw new AnimalNotFoundException("Deletion failed. Could not find animal with id - " + id);
         }
-    }
-
-    public List<Enclosure> findAllEnclosures() {
-        return enclosureRepository.findAll();
-    }
-
-    public Enclosure findEnclosureById(UUID id) {
-        Optional<Enclosure> enclosure = enclosureRepository.findById(id);
-        return enclosure.orElseThrow(() -> new EnclosureNotFoundException("Could not find enclosure with id - " + id));
     }
 
     public List<Enclosure> storeEnclosures(MultipartFile file) {
@@ -104,36 +98,43 @@ public class ZooService {
         return animalRepository.findAll();
     }
 
-    private UUID assignEnclosure(String food, int amount) {
+    private Enclosure getEnclosureForAnimal(String food, int amount) {
+        if (!food.equalsIgnoreCase("Carnivore") && !food.equalsIgnoreCase("Herbivore")) {
+            throw new IncorrectAnimalTypeException("Please specify correct animal food. Usage 'Carnivore' or 'Herbivore'.");
+        }
         List<Enclosure> enclosures = enclosureRepository.findAll();
 
-        return food.equals("Carnivore")
-                ? findSuitableEnclosureForCarnivore(food, amount, enclosures)
-                : findSuitableEnclosureForHerbivore(food, amount, enclosures);
+        return findSuitableEnclosure(food, amount, enclosures);
     }
 
-    private void updateEnclosureDataWithAnimalInfo(UUID id, int amount, String food) {
-        Optional<Enclosure> optionalEnclosure = enclosureRepository.findById(id);
-        if (optionalEnclosure.isPresent()) {
-            Enclosure enclosure = optionalEnclosure.get();
-            enclosure.setId(id);
-            enclosure.setFreeSpace(enclosure.getFreeSpace() - amount);
-            if (amount > 0) {
-                enclosure.setAnimals(food);
-            } else {
-                enclosure.removeAnimals(food);
-            }
-            enclosureRepository.save(enclosure);
+    private void updateEnclosureWithAnimal(Enclosure enclosure, int amount, String food) {
+        enclosure.setFreeSpace(enclosure.getFreeSpace() - amount);
+        if (amount > 0) {
+            enclosure.setAnimals(food);
+        } else {
+            enclosure.removeAnimals(food);
         }
+
+        enclosureRepository.save(enclosure);
     }
 
-    private void updateEnclosureDataWithNewAmount(UUID id, int amount) {
-        Optional<Enclosure> optionalEnclosure = enclosureRepository.findById(id);
-        if (optionalEnclosure.isPresent()) {
-            Enclosure enclosure = optionalEnclosure.get();
-            enclosure.setId(id);
-            enclosure.setFreeSpace(enclosure.getFreeSpace() - amount);
-            enclosureRepository.save(enclosure);
+    private Enclosure findEnclosureById(UUID id) {
+        Optional<Enclosure> enclosure = enclosureRepository.findById(id);
+        return enclosure.orElseThrow();
+    }
+
+    private void updateEnclosureWithAmount(Enclosure enclosure, int amount) {
+        if (enclosure.getFreeSpace() - amount < 0) {
+            throw new NotEnoughFreeSpaceInEnclosure("Update failed. Enclosure can`t store such amount of animals.");
+        }
+
+        enclosure.setFreeSpace(enclosure.getFreeSpace() - amount);
+        enclosureRepository.save(enclosure);
+    }
+
+    private void evaluateIfEnclosuresAreStored() {
+        if (enclosureRepository.count() == 0) {
+            throw new EnclosureNotFoundException("File reading cancelled. Please store enclosures before proceeding with animals.");
         }
     }
 
@@ -143,51 +144,36 @@ public class ZooService {
         }
     }
 
-    private void evaluateIfEnclosuresAreStored() {
-        if (enclosureRepository.count() == 0) {
-            throw new EnclosureNotFoundException("File reading cancelled. Please store enclosures before proceeding with animals.");
-        }
-    }
-
     private void evaluateIfAnimalsAreNotStoredAlready() {
         if (animalRepository.count() > 0) {
             throw new DataAlreadyStoredException("File reading cancelled. Given animals are already stored in database.");
         }
     }
 
-    private UUID findSuitableEnclosureForCarnivore(String food, int amount, List<Enclosure> enclosures) {
-        boolean foundSuitableEnclosure = false;
-        UUID suitableEnclosureId = null;
-        for (Enclosure enclosure : enclosures) {
-            if (Collections.frequency(enclosure.getAnimals(), "Carnivore") <= 1 && enclosure.getFreeSpace() - amount >= 0) {
-                suitableEnclosureId = enclosure.getId();
-                foundSuitableEnclosure = true;
-                break;
-            }
-        }
-
-        if (!foundSuitableEnclosure) {
-            throw new NoAvailableEnclosureException("There is no enough space in enclosures. Animal can`t be placed.");
-        }
-
-        return suitableEnclosureId;
+    private List<Enclosure> findAllEnclosures() {
+        return enclosureRepository.findAll();
     }
 
-    private UUID findSuitableEnclosureForHerbivore(String food, int amount, List<Enclosure> enclosures) {
+    private Enclosure findSuitableEnclosure(String food, int amount, List<Enclosure> enclosures) {
         boolean foundSuitableEnclosure = false;
-        UUID suitableEnclosureId = null;
+        Enclosure suitableEnclosure = null;
         for (Enclosure enclosure : enclosures) {
-            if (enclosure.getFreeSpace() - amount >= 0) {
-                suitableEnclosureId = enclosure.getId();
+            if (suitableEnclosureIsFound(enclosure, food, amount)) {
+                suitableEnclosure = enclosure;
                 foundSuitableEnclosure = true;
                 break;
             }
         }
-
         if (!foundSuitableEnclosure) {
-            throw new NoAvailableEnclosureException("There is no enough space in enclosures. Animal can`t be placed.");
+            throw new EnclosureNotFoundException("Can`t find suitable enclosure for given animal.");
         }
 
-        return suitableEnclosureId;
+        return suitableEnclosure;
+    }
+
+    private boolean suitableEnclosureIsFound(Enclosure enclosure, String food, int amount) {
+        return food.equals("Carnivore") ?
+                Collections.frequency(enclosure.getAnimals(), "Carnivore") <= 1 && enclosure.getFreeSpace() - amount >= 0 :
+                enclosure.getFreeSpace() - amount >= 0;
     }
 }

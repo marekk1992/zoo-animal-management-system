@@ -48,7 +48,7 @@ public class InputReadingServiceTest {
     }
 
     @Test
-    void throws_exception_when_enclosures_file_not_provided_or_empty() {
+    void throws_exception_when_enclosures_file_is_not_provided_or_empty() {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
@@ -103,7 +103,7 @@ public class InputReadingServiceTest {
     }
 
     @Test
-    void throws_exception_when_animals_file_not_provided_or_empty() {
+    void throws_exception_when_animals_file_is_not_provided_or_empty() {
         // given
         MockMultipartFile givenFile = new MockMultipartFile(
                 "file",
